@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vendable.dev/schemas/agent-commerce-manifest.json",
+  "title": "Agent Commerce Manifest",
+  "description": "The seam between the onboarding platform (Node) and Nanda Town (Python): a store rendered as a payable agent.",
+  "type": "object",
+  "required": ["agentId", "displayName", "capabilities", "payment", "endpoint"],
+  "properties": {
+    "agentId": {
+      "type": "string",
+      "description": "Decentralized identity for the merchant agent",
+      "pattern": "^did:"
+    },
+    "displayName": { "type": "string" },
+    "storeUrl": { "type": "string", "format": "uri" },
+    "platform": {
+      "type": "string",
+      "description": "detected store platform",
+      "enum": ["shopify", "woocommerce", "custom", "unknown"]
+    },
+    "capabilities": {
+      "type": "object",
+      "required": ["catalog"],
+      "properties": {
+        "catalog": { "type": "array", "items": { "$ref": "#/$defs/catalogItem" } },
+        "adapter": {
+          "type": "string",
+          "description": "reference to the compiled webcmd adapter, e.g. 'printsmith'"
+        }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "required": ["rail"],
+      "properties": {
+        "rail": { "type": "string", "enum": ["prava"] },
+        "merchantRef": { "type": "string", "description": "Prava sub-merchant / config id" },
+        "currency": { "type": "string", "default": "INR" },
+        "tokenEndpoint": { "type": "string", "description": "where a buyer requests a scoped token" }
+      }
+    },
+    "endpoint": { "type": "string", "description": "agent-callable endpoint (MCP / A2A / HTTP / local)" },
+    "trust": {
+      "type": "object",
+      "properties": {
+        "attestations": { "type": "array", "items": { "type": "string" } },
+        "sensoVerified": { "type": "boolean", "default": false },
+        "reputation": { "type": "number", "default": 0 }
+      }
+    }
+  },
+  "$defs": {
+    "catalogItem": {
+      "type": "object",
+      "required": ["sku", "title", "price", "currency"],
+      "properties": {
+        "sku": { "type": "string" },
+        "title": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "variants": { "type": "array", "items": { "type": "string" } },
+        "url": { "type": "string" }
+      }
+    }
+  }
+}

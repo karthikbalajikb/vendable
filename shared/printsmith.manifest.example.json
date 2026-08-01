@@ -1,0 +1,29 @@
+{
+  "agentId": "did:key:zEXAMPLE00000000000000000000000000",
+  "displayName": "theprintsmithstore.com",
+  "storeUrl": "https://theprintsmithstore.com/",
+  "platform": "custom",
+  "capabilities": {
+    "adapter": "printsmith",
+    "catalog": [
+      {
+        "sku": "dark-knight-a3",
+        "title": "The Dark Knight Rises — Framed Print (A3)",
+        "price": 399,
+        "currency": "INR",
+        "variants": ["A3", "A4", "13x19"],
+        "url": "https://theprintsmithstore.com/products/the-dark-knight-rises-mpdws4wr"
+      },
+      {
+        "sku": "prime-transformer-a3",
+        "title": "Prime Transformer — Framed Print (A3)",
+        "price": 199,
+        "currency": "INR",
+        "variants": ["A3", "A4", "13x19"]
+      }
+    ]
+  },
+  "payment": { "rail": "prava", "merchantRef": "mrc_example", "currency": "INR" },
+  "endpoint": "local://merchant/theprintsmithstore.com",
+  "trust": { "attestations": [], "sensoVerified": false, "reputation": 0 }
+}

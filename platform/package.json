@@ -1,0 +1,28 @@
+{
+  "name": "vendable-platform",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "Onboarding engine: store URL -> vendable store (webcmd + Prava).",
+  "scripts": {
+    "onboard": "tsx src/index.ts onboard",
+    "buy": "tsx src/index.ts buy",
+    "commands": "tsx src/index.ts commands",
+    "bench": "tsx src/index.ts bench",
+    "serve": "tsx src/index.ts serve",
+    "mcp": "tsx src/index.ts mcp",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^12.1.0",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}

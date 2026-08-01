@@ -1,0 +1,18 @@
+[project]
+name = "prava-payments-nanda"
+version = "0.0.1"
+description = "Prava payments-layer plugin for Nanda Town (nest-core)."
+requires-python = ">=3.12"
+dependencies = ["nest-core"]
+
+# Registers this plugin under the Nanda Town payments layer as `prava`,
+# so a scenario YAML can select it with `layers: { payments: prava }`.
+[project.entry-points."nest.plugins.payments"]
+prava = "prava_payments.plugin:PravaPayments"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["prava_payments*"]
