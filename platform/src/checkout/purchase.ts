@@ -44,10 +44,13 @@ export async function purchase(rec: StoreRecord, sku: string): Promise<PurchaseR
   const prava = new PravaClient();
 
   // ---- payment leg ----
+  // Prefer the most recently approved mandate that still has enough budget. Sorting by
+  // `remaining` alone is ambiguous when several mandates share the same cap and can pick a
+  // stale/broken one — recency reliably targets the mandate the user just approved.
   const active = prava.live
     ? (await prava.listMandates().catch(() => [] as Array<Record<string, any>>))
-        .filter((m) => String(m.status ?? '').toLowerCase() === 'active')
-        .sort((a, b) => Number(b.remaining ?? 0) - Number(a.remaining ?? 0))[0]
+        .filter((m) => String(m.status ?? '').toLowerCase() === 'active' && Number(m.remaining ?? 0) >= pick.price)
+        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0]
     : undefined;
 
   let receipt: Receipt;

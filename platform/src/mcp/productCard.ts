@@ -141,12 +141,15 @@ export const PRODUCT_CARD_HTML = `
   }
 
   function render() {
-    var data = output() || {};
-    var products = Array.isArray(data.products) ? data.products : [];
+    var data = output();
     var root = document.getElementById('vd-root');
     if (!root) return;
     root.className = 'vd-root';
     root.textContent = '';
+    if (!data) {
+      var loading = el('div', 'vd-empty'); loading.textContent = 'Loading…'; root.appendChild(loading); return;
+    }
+    var products = Array.isArray(data.products) ? data.products : [];
     if (!products.length) {
       var empty = el('div', 'vd-empty'); empty.textContent = 'No products found.'; root.appendChild(empty); return;
     }
@@ -155,7 +158,17 @@ export const PRODUCT_CARD_HTML = `
     root.appendChild(grid);
   }
 
-  render();
+  // ChatGPT delivers tool output via window.openai + an "openai:set_globals" event; the
+  // MCP Apps bridge uses "ui/notifications/tool-result" (handled above). Support both, plus
+  // a short bounded retry for the race where globals arrive before this script runs.
+  window.addEventListener('openai:set_globals', function () { render(); }, { passive: true });
+  var tries = 0;
+  (function poll() {
+    var d = output();
+    var ready = !!(d && Array.isArray(d.products));
+    render();
+    if (!ready && tries++ < 25) setTimeout(poll, 120);
+  })();
 })();
 </script>
 `.trim();

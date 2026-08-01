@@ -8,7 +8,7 @@ import { PRODUCT_CARD_HTML } from './productCard.js';
 import type { CatalogItem } from '../types.js';
 
 /** The product-card component is a cache key — bump the version on any HTML/JS/CSS change. */
-const WIDGET_URI = 'ui://widget/product-card.html';
+const WIDGET_URI = 'ui://widget/product-card-v2.html';
 
 interface ProductCard extends CatalogItem {
   storeId: string;

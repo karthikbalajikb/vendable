@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "type": "module",
+  "name": "vendable-web",
+  "description": "Vendable public landing page + waitlist/leads API (Vercel)."
+}

@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AgentCommerceManifest } from '../types.js';
+import type { TrustReport } from '../trust/senso.js';
+import type { CertResult } from '../nanda/certify.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.resolve(__dirname, '../../data');
@@ -14,6 +16,9 @@ export interface StoreRecord {
   productCount: number;
   source?: string;
   remediated?: boolean;
+  trustReport?: TrustReport;
+  certification?: CertResult;
+  sensoIngestedAt?: string;
   onboardedAt: string;
   manifest: AgentCommerceManifest;
 }
