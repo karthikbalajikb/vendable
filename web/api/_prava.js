@@ -58,11 +58,17 @@ export async function settle(rec, item) {
   if (!pravaLive) {
     return { ok: true, headless: false, receipt: { ref: `mock_${Date.now().toString(36)}`, status: 'settled', amount: item.price, currency: item.currency } };
   }
-  const active = (await listMandates().catch(() => []))
-    .filter((m) => String(m.status || '').toLowerCase() === 'active' && Number(m.remaining || 0) >= item.price)
+  // Prava allows ONE charge per cycle per mandate — prefer one untouched this cycle
+  // (remaining == approvedAmount), newest first; a spent one would decline "already this cycle".
+  const liveMandates = (await listMandates().catch(() => [])).filter((m) => String(m.status || '').toLowerCase() === 'active');
+  const active = liveMandates
+    .filter((m) => Number(m.remaining || 0) >= item.price && Number(m.remaining || 0) >= Number(m.approvedAmount || m.remaining || 0))
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
   if (!active) {
-    return { ok: false, headless: false, receipt: { ref: '', status: 'failed', amount: item.price, currency: item.currency }, error: 'No active Prava mandate with enough budget — approve one first.' };
+    const error = liveMandates.length
+      ? 'All approved Prava mandates were already used this cycle (one purchase per cycle per mandate). Approve a fresh mandate to buy again.'
+      : 'No active Prava mandate — approve one first.';
+    return { ok: false, headless: liveMandates.length > 0, receipt: { ref: '', status: 'failed', amount: item.price, currency: item.currency }, error };
   }
   const mandateId = String(active.id || active.mandate_id || active.mandateId);
   const merchantName = String(active.merchantName || rec.manifest?.displayName || rec.id);

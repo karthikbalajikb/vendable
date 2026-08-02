@@ -44,14 +44,15 @@ export async function purchase(rec: StoreRecord, sku: string): Promise<PurchaseR
   const prava = new PravaClient();
 
   // ---- payment leg ----
-  // Prefer the most recently approved mandate that still has enough budget. Sorting by
-  // `remaining` alone is ambiguous when several mandates share the same cap and can pick a
-  // stale/broken one — recency reliably targets the mandate the user just approved.
-  const active = prava.live
-    ? (await prava.listMandates().catch(() => [] as Array<Record<string, any>>))
-        .filter((m) => String(m.status ?? '').toLowerCase() === 'active' && Number(m.remaining ?? 0) >= pick.price)
-        .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0]
-    : undefined;
+  // Prava allows ONE charge per cycle per mandate, so prefer a mandate that is UNTOUCHED this
+  // cycle (remaining == approvedAmount); a partially-spent one would just decline "already this
+  // cycle". Among those, take the most recently approved. (docs.prava.space/concepts/mandates)
+  const liveMandates = prava.live
+    ? (await prava.listMandates().catch(() => [] as Array<Record<string, any>>)).filter((m) => String(m.status ?? '').toLowerCase() === 'active')
+    : [];
+  const active = liveMandates
+    .filter((m) => Number(m.remaining ?? 0) >= pick.price && Number(m.remaining ?? 0) >= Number(m.approvedAmount ?? m.remaining ?? 0))
+    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0];
 
   let receipt: Receipt;
   let headless = false;
@@ -69,6 +70,11 @@ export async function purchase(rec: StoreRecord, sku: string): Promise<PurchaseR
     headless = true;
     payError = charge.errorMessage ? String(charge.errorMessage) : undefined;
     receipt = { ref: String(charge.transactionId ?? ''), status: settled ? 'settled' : 'failed', amount: pick.price, currency: pick.currency };
+  } else if (liveMandates.length) {
+    // Every active mandate already spent its one charge this cycle.
+    headless = true;
+    payError = 'All approved Prava mandates were already used this cycle (one purchase per cycle per mandate). Approve a fresh mandate to buy again.';
+    receipt = { ref: '', status: 'failed', amount: pick.price, currency: pick.currency };
   } else {
     receipt = (await simulateCheckout(rec.manifest, sku)).receipt;
   }
