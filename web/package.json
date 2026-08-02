@@ -2,5 +2,9 @@
   "private": true,
   "type": "module",
   "name": "vendable-web",
-  "description": "Vendable public landing page + waitlist/leads API (Vercel)."
+  "description": "Vendable public landing page + waitlist/leads API + MCP connector (Vercel).",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.23.8"
+  }
 }
