@@ -44,15 +44,19 @@ export async function purchase(rec: StoreRecord, sku: string): Promise<PurchaseR
   const prava = new PravaClient();
 
   // ---- payment leg ----
-  // Prava allows ONE charge per cycle per mandate, so prefer a mandate that is UNTOUCHED this
-  // cycle (remaining == approvedAmount); a partially-spent one would just decline "already this
-  // cycle". Among those, take the most recently approved. (docs.prava.space/concepts/mandates)
+  // Prava mandates are merchant-scoped. Pick a mandate that can actually pay THIS store — either
+  // an `any`-scope (one-time marketplace) mandate or one locked to this merchant — and that is
+  // untouched this cycle (remaining == approvedAmount, since it's one charge per cycle). Prefer a
+  // store-locked mandate over the one-time any-scope one, then most recent.
+  const storeName = String(rec.manifest.displayName ?? rec.id).toLowerCase();
+  const isAnyScope = (m: Record<string, any>) => String(m.merchantScope ?? m.merchant_scope ?? '').toLowerCase() === 'any';
+  const eligibleForStore = (m: Record<string, any>) => isAnyScope(m) || String(m.merchantName ?? '').toLowerCase() === storeName;
   const liveMandates = prava.live
     ? (await prava.listMandates().catch(() => [] as Array<Record<string, any>>)).filter((m) => String(m.status ?? '').toLowerCase() === 'active')
     : [];
   const active = liveMandates
-    .filter((m) => Number(m.remaining ?? 0) >= pick.price && Number(m.remaining ?? 0) >= Number(m.approvedAmount ?? m.remaining ?? 0))
-    .sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0];
+    .filter((m) => Number(m.remaining ?? 0) >= pick.price && Number(m.remaining ?? 0) >= Number(m.approvedAmount ?? m.remaining ?? 0) && eligibleForStore(m))
+    .sort((a, b) => (isAnyScope(a) ? 1 : 0) - (isAnyScope(b) ? 1 : 0) || String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0];
 
   let receipt: Receipt;
   let headless = false;
@@ -71,9 +75,9 @@ export async function purchase(rec: StoreRecord, sku: string): Promise<PurchaseR
     payError = charge.errorMessage ? String(charge.errorMessage) : undefined;
     receipt = { ref: String(charge.transactionId ?? ''), status: settled ? 'settled' : 'failed', amount: pick.price, currency: pick.currency };
   } else if (liveMandates.length) {
-    // Every active mandate already spent its one charge this cycle.
+    // No mandate is both allowed at this merchant and unspent this cycle.
     headless = true;
-    payError = 'All approved Prava mandates were already used this cycle (one purchase per cycle per mandate). Approve a fresh mandate to buy again.';
+    payError = `No approved mandate can pay ${rec.manifest.displayName} right now (merchant-locked elsewhere, already used this cycle, or over budget). Approve a mandate for this store — or an any-store mandate.`;
     receipt = { ref: '', status: 'failed', amount: pick.price, currency: pick.currency };
   } else {
     receipt = (await simulateCheckout(rec.manifest, sku)).receipt;

@@ -186,17 +186,18 @@ function createServer() {
     {
       title: 'Set up a spending mandate',
       description:
-        'Create a Prava spending mandate so the shopper can then buy headlessly. Returns an approval link the shopper opens once and confirms with their passkey (Touch ID). Use before checkout when there is no active mandate or a new spending allowance is needed.',
+        "Create a Prava spending mandate so the shopper can then buy headlessly. Returns an approval link the shopper opens once and confirms with their passkey (Touch ID). scope 'store' (default) = repeat buys at one store; scope 'any' = one purchase at ANY onboarded store. Use before checkout when there is no usable mandate.",
       inputSchema: {
-        storeId: z.string().optional().describe('Store to scope the mandate to (defaults to the demo store)'),
-        cap: z.number().optional().describe('Monthly spending cap (default 2000)'),
+        storeId: z.string().optional().describe('Store to scope the mandate to (defaults to the demo store; ignored when scope is "any")'),
+        cap: z.number().optional().describe('Spending cap (default 2000)'),
         maxCharges: z.number().int().min(1).optional(),
+        scope: z.enum(['store', 'any']).optional().describe("'store' (default): recurring, one merchant · 'any': one-time, any merchant"),
       },
       outputSchema: { approvalUrl: z.string(), cap: z.number(), currency: z.string(), merchant: z.string(), storeId: z.string(), error: z.string().optional() },
       annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
       _meta: { 'openai/toolInvocation/invoking': 'Creating your spending mandate…', 'openai/toolInvocation/invoked': 'Mandate ready to approve.' },
     },
-    async ({ storeId, cap, maxCharges }) => {
+    async ({ storeId, cap, maxCharges, scope }) => {
       const rec = (storeId && findStore(storeId)) || findStore('theprintsmithstore.com') || STORE_LIST[0];
       if (!rec) {
         return { structuredContent: { approvalUrl: '', cap: 0, currency: '', merchant: '', storeId: storeId || '' }, content: [{ type: 'text', text: 'No store available to scope the mandate to.' }], isError: true };
@@ -204,23 +205,22 @@ function createServer() {
       if (!pravaLive) {
         return { structuredContent: { approvalUrl: '', cap: 0, currency: '', merchant: rec.manifest.displayName, storeId: rec.id }, content: [{ type: 'text', text: 'Prava is in MOCK mode on the server — set PRAVA_LIVE=1 + a secret key to create a real mandate.' }], isError: true };
       }
-      const currency = rec.manifest.payment?.currency || 'INR';
+      const anyStore = scope === 'any';
+      const currency = anyStore ? 'INR' : (rec.manifest.payment?.currency || 'INR');
       const capAmount = cap ?? 2000;
+      const merchantName = anyStore ? 'Vendable (any store)' : rec.manifest.displayName;
+      const merchantUrl = anyStore ? 'https://vendable.vercel.app' : (rec.manifest.storeUrl || rec.url);
       try {
-        const m = await createMandate({ merchantName: rec.manifest.displayName, merchantUrl: rec.manifest.storeUrl || rec.url, cap: capAmount, currency, maxCharges: maxCharges ?? 10 });
+        const m = await createMandate({ merchantName, merchantUrl, cap: capAmount, currency, maxCharges: maxCharges ?? 10, scope: anyStore ? 'any' : 'store' });
+        const text = anyStore
+          ? `Approve a one-time marketplace mandate (up to ${currency} ${capAmount}, ANY store):\n${m.approvalUrl}\n\nConfirm with your passkey, then ask me to buy one item from any onboarded store — I'll charge it headlessly.`
+          : `Approve your ${currency} ${capAmount}/month spending mandate for ${rec.manifest.displayName}:\n${m.approvalUrl}\n\nConfirm with your passkey, then ask me to buy — I'll charge it headlessly (one purchase per cycle).`;
         return {
-          structuredContent: { approvalUrl: m.approvalUrl, cap: capAmount, currency, merchant: rec.manifest.displayName, storeId: rec.id },
-          content: [
-            {
-              type: 'text',
-              text:
-                `Approve your ${currency} ${capAmount}/month spending mandate for ${rec.manifest.displayName}:\n${m.approvalUrl}\n\n` +
-                `Open the link, confirm with your passkey (Touch ID), then ask me to buy — I'll charge it headlessly (no passkey per purchase). Note: one purchase per cycle per mandate.`,
-            },
-          ],
+          structuredContent: { approvalUrl: m.approvalUrl, cap: capAmount, currency, merchant: merchantName, storeId: anyStore ? 'any' : rec.id },
+          content: [{ type: 'text', text }],
         };
       } catch (e) {
-        return { structuredContent: { approvalUrl: '', cap: capAmount, currency, merchant: rec.manifest.displayName, storeId: rec.id, error: String(e?.message || e) }, content: [{ type: 'text', text: 'Could not create the mandate: ' + String(e?.message || e) }], isError: true };
+        return { structuredContent: { approvalUrl: '', cap: capAmount, currency, merchant: merchantName, storeId: rec.id, error: String(e?.message || e) }, content: [{ type: 'text', text: 'Could not create the mandate: ' + String(e?.message || e) }], isError: true };
       }
     },
   );

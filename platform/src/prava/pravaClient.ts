@@ -104,7 +104,7 @@ export class PravaClient {
   }
 
   /** Set up a spending mandate (Create Session + mandate_setup) — approve ONCE via passkey, then charge headlessly. */
-  async createMandate(order: OrderContext, opts: { maxCharges?: number; frequency?: 'one_time' | 'weekly' | 'monthly' | 'yearly'; userId?: string; userEmail?: string } = {}): Promise<PravaSession> {
+  async createMandate(order: OrderContext, opts: { maxCharges?: number; frequency?: 'one_time' | 'weekly' | 'monthly' | 'yearly'; merchantScope?: 'listed' | 'any'; userId?: string; userEmail?: string } = {}): Promise<PravaSession> {
     const body = {
       user_id: opts.userId ?? process.env.PRAVA_USER_ID ?? 'vendable-demo',
       user_email: opts.userEmail ?? process.env.PRAVA_USER_EMAIL ?? 'demo@vendable.dev',
@@ -121,7 +121,7 @@ export class PravaClient {
         },
       ],
       integration_type: 'full_checkout',
-      mandate_setup: { intent: 'mandate_setup', recurring_frequency: opts.frequency ?? 'monthly', merchant_scope: 'listed', max_charges: opts.maxCharges ?? 10 },
+      mandate_setup: { intent: 'mandate_setup', recurring_frequency: opts.frequency ?? 'monthly', merchant_scope: opts.merchantScope ?? 'listed', max_charges: opts.maxCharges ?? 10 },
     };
     const j = await this.req('POST', '/v1/sessions', body);
     return { sessionId: j.session_id, sessionToken: j.session_token, iframeUrl: j.iframe_url, orderId: j.order_id, expiresAt: j.expires_at, authorizeOnly: j.authorizeOnly };

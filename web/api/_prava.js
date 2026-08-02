@@ -58,15 +58,19 @@ export async function settle(rec, item) {
   if (!pravaLive) {
     return { ok: true, headless: false, receipt: { ref: `mock_${Date.now().toString(36)}`, status: 'settled', amount: item.price, currency: item.currency } };
   }
-  // Prava allows ONE charge per cycle per mandate — prefer one untouched this cycle
-  // (remaining == approvedAmount), newest first; a spent one would decline "already this cycle".
+  // Merchant-aware + one-charge-per-cycle: pick a mandate that can pay THIS store (an `any`-scope
+  // marketplace mandate, or one locked to this merchant) and is untouched this cycle. Prefer a
+  // store-locked mandate over the one-time any-scope one, then most recent.
+  const storeName = String(rec.manifest?.displayName || rec.id).toLowerCase();
+  const isAny = (m) => String(m.merchantScope || m.merchant_scope || '').toLowerCase() === 'any';
+  const eligible = (m) => isAny(m) || String(m.merchantName || '').toLowerCase() === storeName;
   const liveMandates = (await listMandates().catch(() => [])).filter((m) => String(m.status || '').toLowerCase() === 'active');
   const active = liveMandates
-    .filter((m) => Number(m.remaining || 0) >= item.price && Number(m.remaining || 0) >= Number(m.approvedAmount || m.remaining || 0))
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
+    .filter((m) => Number(m.remaining || 0) >= item.price && Number(m.remaining || 0) >= Number(m.approvedAmount || m.remaining || 0) && eligible(m))
+    .sort((a, b) => (isAny(a) ? 1 : 0) - (isAny(b) ? 1 : 0) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0];
   if (!active) {
     const error = liveMandates.length
-      ? 'All approved Prava mandates were already used this cycle (one purchase per cycle per mandate). Approve a fresh mandate to buy again.'
+      ? `No approved mandate can pay ${rec.manifest?.displayName || rec.id} right now (merchant-locked elsewhere, already used this cycle, or over budget). Approve a mandate for this store — or an any-store mandate.`
       : 'No active Prava mandate — approve one first.';
     return { ok: false, headless: liveMandates.length > 0, receipt: { ref: '', status: 'failed', amount: item.price, currency: item.currency }, error };
   }
@@ -86,8 +90,10 @@ export async function settle(rec, item) {
   };
 }
 
-/** Create a Prava spending mandate (Create Session + mandate_setup). Returns the approval URL. */
-export async function createMandate({ merchantName, merchantUrl, cap, currency, maxCharges }) {
+/** Create a Prava spending mandate (Create Session + mandate_setup). Returns the approval URL.
+ *  scope 'any' -> one-time, any-merchant; otherwise recurring monthly locked to the merchant. */
+export async function createMandate({ merchantName, merchantUrl, cap, currency, maxCharges, scope }) {
+  const anyStore = scope === 'any';
   const url = String(merchantUrl || '');
   const body = {
     user_id: process.env.PRAVA_USER_ID || 'vendable-demo',
@@ -97,11 +103,11 @@ export async function createMandate({ merchantName, merchantUrl, cap, currency, 
     purchase_context: [
       {
         merchant_details: { name: merchantName, url: url.startsWith('http') ? url : `https://${url}`, country_code_iso2: 'US' },
-        product_details: [{ description: `Agent spending mandate for ${merchantName}`, unit_price: Number(cap).toFixed(2), quantity: 1 }],
+        product_details: [{ description: anyStore ? 'Marketplace spending mandate (any store)' : `Agent spending mandate for ${merchantName}`, unit_price: Number(cap).toFixed(2), quantity: 1 }],
       },
     ],
     integration_type: 'full_checkout',
-    mandate_setup: { intent: 'mandate_setup', recurring_frequency: 'monthly', merchant_scope: 'listed', max_charges: maxCharges || 10 },
+    mandate_setup: { intent: 'mandate_setup', recurring_frequency: anyStore ? 'one_time' : 'monthly', merchant_scope: anyStore ? 'any' : 'listed', max_charges: anyStore ? 1 : (maxCharges || 10) },
   };
   const j = await req('POST', '/v1/sessions', body);
   return { approvalUrl: j.iframe_url, sessionId: j.session_id, cap: Number(cap), currency };
