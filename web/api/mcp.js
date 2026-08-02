@@ -9,7 +9,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { z } from 'zod';
 import { stores as STORES } from './_stores.js';
 import { PRODUCT_CARD_HTML } from './_widget.js';
-import { settle } from './_prava.js';
+import { settle, createMandate, pravaLive } from './_prava.js';
 
 const WIDGET_URI = 'ui://widget/product-card-v2.html';
 const STORE_LIST = Object.values(STORES);
@@ -177,6 +177,50 @@ function createServer() {
           content: [{ type: 'text', text: 'Checkout failed: ' + String(e?.message || e) }],
           isError: true,
         };
+      }
+    },
+  );
+
+  server.registerTool(
+    'setup_mandate',
+    {
+      title: 'Set up a spending mandate',
+      description:
+        'Create a Prava spending mandate so the shopper can then buy headlessly. Returns an approval link the shopper opens once and confirms with their passkey (Touch ID). Use before checkout when there is no active mandate or a new spending allowance is needed.',
+      inputSchema: {
+        storeId: z.string().optional().describe('Store to scope the mandate to (defaults to the demo store)'),
+        cap: z.number().optional().describe('Monthly spending cap (default 2000)'),
+        maxCharges: z.number().int().min(1).optional(),
+      },
+      outputSchema: { approvalUrl: z.string(), cap: z.number(), currency: z.string(), merchant: z.string(), storeId: z.string(), error: z.string().optional() },
+      annotations: { readOnlyHint: false, openWorldHint: true, destructiveHint: false },
+      _meta: { 'openai/toolInvocation/invoking': 'Creating your spending mandate…', 'openai/toolInvocation/invoked': 'Mandate ready to approve.' },
+    },
+    async ({ storeId, cap, maxCharges }) => {
+      const rec = (storeId && findStore(storeId)) || findStore('theprintsmithstore.com') || STORE_LIST[0];
+      if (!rec) {
+        return { structuredContent: { approvalUrl: '', cap: 0, currency: '', merchant: '', storeId: storeId || '' }, content: [{ type: 'text', text: 'No store available to scope the mandate to.' }], isError: true };
+      }
+      if (!pravaLive) {
+        return { structuredContent: { approvalUrl: '', cap: 0, currency: '', merchant: rec.manifest.displayName, storeId: rec.id }, content: [{ type: 'text', text: 'Prava is in MOCK mode on the server — set PRAVA_LIVE=1 + a secret key to create a real mandate.' }], isError: true };
+      }
+      const currency = rec.manifest.payment?.currency || 'INR';
+      const capAmount = cap ?? 2000;
+      try {
+        const m = await createMandate({ merchantName: rec.manifest.displayName, merchantUrl: rec.manifest.storeUrl || rec.url, cap: capAmount, currency, maxCharges: maxCharges ?? 10 });
+        return {
+          structuredContent: { approvalUrl: m.approvalUrl, cap: capAmount, currency, merchant: rec.manifest.displayName, storeId: rec.id },
+          content: [
+            {
+              type: 'text',
+              text:
+                `Approve your ${currency} ${capAmount}/month spending mandate for ${rec.manifest.displayName}:\n${m.approvalUrl}\n\n` +
+                `Open the link, confirm with your passkey (Touch ID), then ask me to buy — I'll charge it headlessly (no passkey per purchase). Note: one purchase per cycle per mandate.`,
+            },
+          ],
+        };
+      } catch (e) {
+        return { structuredContent: { approvalUrl: '', cap: capAmount, currency, merchant: rec.manifest.displayName, storeId: rec.id, error: String(e?.message || e) }, content: [{ type: 'text', text: 'Could not create the mandate: ' + String(e?.message || e) }], isError: true };
       }
     },
   );
