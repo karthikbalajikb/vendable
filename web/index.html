@@ -141,6 +141,13 @@
     .hook b{color:var(--gold);font-weight:800}
     .hook .hook-cta{font-size:clamp(21px,3vw,27px);font-weight:800;letter-spacing:-.01em;margin:6px 0 0}
     .hook .hook-cta b{color:var(--green)}
+    .seg{display:inline-flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px;box-shadow:var(--shadow)}
+    .seg-btn{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:15px;padding:11px 22px;border-radius:999px;cursor:pointer;transition:.15s}
+    .seg-btn.is-on{background:var(--green);color:#fff}
+    .seg-wrap{text-align:center;margin:8px 0 28px}
+    .aud-panel[hidden]{display:none}
+    .grid.two{grid-template-columns:1fr 1fr}
+    @media(max-width:720px){.grid.two{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -148,7 +155,7 @@
     <div class="wrap nav">
       <div class="brand"><span class="logo">V</span><span class="brand-tt"><span>Vend<b>able</b></span><a class="by" href="https://copilotverse.io" target="_blank" rel="noopener">by copilotverse.io</a></span></div>
       <nav class="nav-links">
-        <a href="#problem">Problem</a>
+        <a href="#audience">Sellers &amp; buyers</a>
         <a href="#how">How it works</a>
         <a href="#market">Why now</a>
       </nav>
@@ -162,14 +169,14 @@
     <section class="hero" id="get-started">
       <span class="eyebrow"><span class="dot"></span>Get discovered by AI shoppers — ChatGPT · Gemini · Perplexity</span>
       <h1>Your store sells on Google.<br><span>It's invisible to ChatGPT.</span></h1>
-      <p>AI shoppers on ChatGPT, Gemini, and Perplexity can't find — or buy from — most stores. Paste your store URL and Vendable makes it discoverable and checkout-ready inside ChatGPT.</p>
+      <p>AI shoppers on ChatGPT, Gemini, and Perplexity can't find — or buy from — most stores. Paste your store URL and Vendable turns it into an agent they can <b>discover, trust, and buy from</b> — checkout happens right inside ChatGPT.</p>
       <form class="lead" id="leadForm" novalidate>
         <input id="leadUrl" class="lead-input" type="text" inputmode="url" autocomplete="url" placeholder="Enter your store URL — e.g. yourstore.com" aria-label="Your e-commerce store URL" />
         <button class="btn green lg" type="submit" id="leadBtn">Make it appear in ChatGPT
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
         </button>
       </form>
-      <div class="hero-note" id="leadNote">Drop your store URL — we'll make it discoverable and buyable inside ChatGPT. No spam.</div>
+      <div class="hero-note" id="leadNote">Drop your store URL — we'll make it discoverable, verified, and buyable inside ChatGPT. No spam.</div>
 
       <figure class="mock hero-video">
         <div class="mock-bar"><i></i><i></i><i></i><span class="url">chatgpt.com — shopping with Vendable</span></div>
@@ -181,74 +188,68 @@
       </figure>
     </section>
 
-    <section class="section" id="problem">
-      <h2>Great stores. Invisible to AI shoppers.</h2>
-      <p class="lede">We studied 1,000+ merchants with real revenue. Almost all rank on Google — and show up nowhere on the assistants people now shop with.</p>
-      <div class="problem-grid">
-        <div class="prob">
-          <div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg></div>
-          <h3>Not discoverable</h3>
-          <p>ChatGPT, Gemini, Claude, and Perplexity can't surface your products — there are no answer-engine (AEO) signals or structured data for agents to read.</p>
+    <section class="section" id="audience">
+      <h2>Are you a seller or a buyer?</h2>
+      <p class="lede">Two sides, one loop — pick yours.</p>
+      <div class="seg-wrap"><div class="seg" role="tablist" aria-label="Seller or buyer">
+        <button class="seg-btn is-on" id="segSeller" role="tab" aria-selected="true">I'm a seller</button>
+        <button class="seg-btn" id="segBuyer" role="tab" aria-selected="false">I'm a buyer</button>
+      </div></div>
+
+      <div class="aud-panel" id="panelSeller">
+        <div class="grid two">
+          <div class="feature">
+            <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"/><path d="M5 7v14h14V7"/><path d="M9 11h6"/></svg></div>
+            <h3>What you do</h3>
+            <p>Paste your store URL. That's it — no code, no new protocols to learn.</p>
+          </div>
+          <div class="feature">
+            <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <h3>What Vendable does</h3>
+            <p>Analyzes your store, scores its trust with Senso, issues a NANDA agent‑facts identity, sets up UCP/ACP checkout (or hands you the exact fix plan), pulls your catalog in, and makes you live for AI shoppers.</p>
+          </div>
         </div>
-        <div class="prob">
-          <div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg></div>
-          <h3>Can't check out</h3>
-          <p>Even when a product is found, an agent can't buy it. The store speaks no agentic commerce protocol (ACP / UCP), so the purchase dead-ends.</p>
-        </div>
-        <div class="prob">
-          <div class="pic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
-          <h3>Too technical, too slow</h3>
-          <p>Doing this by hand — protocols, manifests, product data, payments — is months of specialist engineering most merchants never start.</p>
-        </div>
+        <div style="text-align:center;margin-top:24px"><a class="btn green lg" href="#get-started">List my store
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </a></div>
       </div>
+
+      <div class="aud-panel" id="panelBuyer" hidden>
+        <div class="grid two">
+          <div class="feature">
+            <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
+            <h3>What you do</h3>
+            <p>In ChatGPT → Settings → Connectors, add <b>vendable.vercel.app/mcp</b>. Then just ask — e.g. “Find me a Dark Knight poster under ₹500 and buy it.”</p>
+          </div>
+          <div class="feature">
+            <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
+            <h3>What Vendable does</h3>
+            <p>Surfaces trusted, verified stores and buyable product cards, then completes checkout with a Prava spending mandate you approve once — safe agent‑to‑agent payment on Visa's rails.</p>
+          </div>
+        </div>
+        <div style="text-align:center;margin-top:24px"><a class="btn lg" href="#how">See how it works</a></div>
+      </div>
+      <p class="lede" style="margin-top:26px;text-align:center">Design partner: <b>The PrintSmith Store</b> — early sellers onboarding now.</p>
     </section>
 
     <section class="section" id="how">
-      <h2>One URL. A full agentic-commerce upgrade.</h2>
-      <p class="lede">We analyze your store with webcmd, generate the exact changes for your platform, verify them in a loop, wire up agent payments — and prove it with a buyer-agent simulation.</p>
-      <div class="steps">
-        <div class="step"><div class="n">1</div><h4>Analyze</h4><p>Paste a URL. webcmd crawls the store, detects the platform, and audits every product for AEO + SEO readiness.</p></div>
-        <div class="step"><div class="n">2</div><h4>Plan</h4><p>We generate the exact files &amp; code changes for ACP / UCP compliance and AEO/SEO fixes — tailored to your stack.</p></div>
-        <div class="step"><div class="n">3</div><h4>Implement</h4><p>Apply the changes with our WordPress, Wix, and custom connectors — do it yourself, or let our agents do it for you.</p></div>
-        <div class="step"><div class="n">4</div><h4>Verify (loop)</h4><p>webcmd re-crawls to confirm the plan actually landed, and iterates until every check turns green.</p></div>
-        <div class="step"><div class="n">5</div><h4>Enable payments</h4><p>Turn on secure agent-to-agent payments with Prava so agents can complete a real checkout.</p></div>
-        <div class="step"><div class="n">6</div><h4>Simulate &amp; certify</h4><p>Our buyer agent runs an end-to-end purchase to validate discovery, checkout, and payment before you go live.</p></div>
+      <h2>How it works</h2>
+      <div class="aud-panel" id="howSeller">
+        <p class="lede">One URL in. A discoverable, trusted, payable store out — no code.</p>
+        <div class="steps">
+          <div class="step"><div class="n">1</div><h4>Onboard</h4><p>Paste your store URL. We crawl the catalog, detect the platform, and build your agent — even if you have no API.</p></div>
+          <div class="step"><div class="n">2</div><h4>Verify &amp; trust</h4><p>Senso trust-scores the store on real signals; Project NANDA issues its agent identity. Not ready? We hand back the exact fixes.</p></div>
+          <div class="step"><div class="n">3</div><h4>Make it payable</h4><p>We wire up UCP/ACP checkout and Prava agent payments — a mandate the shopper approves once, then headless settlement.</p></div>
+          <div class="step"><div class="n">4</div><h4>Go live</h4><p>Your store is discoverable and buyable by AI shoppers inside ChatGPT — with a verifiable receipt on every order.</p></div>
+        </div>
       </div>
-    </section>
-
-    <section class="section" id="scope">
-      <h2>What Vendable covers</h2>
-      <p class="lede">Discovery, checkout, and payments — across the platforms merchants actually run on.</p>
-      <div class="grid">
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div>
-          <h3>AI discovery (AEO)</h3>
-          <p>Structured data and answer-engine signals so ChatGPT, Gemini, Claude, and Perplexity can recommend your products.</p>
-        </div>
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
-          <h3>Agentic checkout (ACP / UCP)</h3>
-          <p>The manifests and endpoints agents need to add to cart and complete a purchase programmatically.</p>
-        </div>
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></div>
-          <h3>Agent-to-agent payments</h3>
-          <p>Prava issues scoped payment tokens so buyer agents pay safely and every purchase returns a verifiable receipt.</p>
-        </div>
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
-          <h3>Platform connectors</h3>
-          <p>Shopify, WordPress/WooCommerce, Wix, and custom builds — we output changes specific to how your store is built.</p>
-        </div>
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></div>
-          <h3>Closed-loop verification</h3>
-          <p>webcmd re-crawls after each change and confirms the plan is complete — no guessing whether it worked.</p>
-        </div>
-        <div class="feature">
-          <div class="fic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="14" rx="2"/><path d="M9 6V4a3 3 0 0 1 6 0v2"/><circle cx="9" cy="13" r="1"/><circle cx="15" cy="13" r="1"/></svg></div>
-          <h3>Buyer-agent simulation</h3>
-          <p>A real AI buyer runs the full journey — find, checkout, pay — so you launch knowing it works end to end.</p>
+      <div class="aud-panel" id="howBuyer" hidden>
+        <p class="lede">Connect once, then just ask — trusted discovery and one‑tap checkout, right inside ChatGPT.</p>
+        <div class="steps">
+          <div class="step"><div class="n">1</div><h4>Connect</h4><p>In ChatGPT → Settings → Connectors, add <b>vendable.vercel.app/mcp</b>. One endpoint, done.</p></div>
+          <div class="step"><div class="n">2</div><h4>Set a mandate</h4><p>Approve a Prava spending mandate once with Touch ID — your cap, your rules. The agent never sees your card.</p></div>
+          <div class="step"><div class="n">3</div><h4>Just ask</h4><p>“Find me a Dark Knight poster under ₹500.” Vendable shows buyable cards from trusted, verified stores.</p></div>
+          <div class="step"><div class="n">4</div><h4>Buy</h4><p>One tap. Prava settles headlessly on Visa’s rails — a verifiable receipt, no forms, no redirect.</p></div>
         </div>
       </div>
     </section>
@@ -278,7 +279,7 @@
     <div class="foot">
       <div class="brand"><span class="logo">V</span><span class="brand-tt"><span>Vend<b>able</b></span><a class="by" href="https://copilotverse.io" target="_blank" rel="noopener">by copilotverse.io</a></span></div>
       <div class="links">
-        <a href="#problem">Problem</a>
+        <a href="#audience">Sellers &amp; buyers</a>
         <a href="#how">How it works</a>
         <a href="#market">Why now</a>
         <a href="#get-started">Get listed</a>
@@ -329,6 +330,24 @@
           }, 350);
         });
       });
+
+      // Audience toggle (seller / buyer) — swaps the panel + the "How it works" steps
+      var segS = document.getElementById('segSeller');
+      var segB = document.getElementById('segBuyer');
+      var panS = document.getElementById('panelSeller');
+      var panB = document.getElementById('panelBuyer');
+      var howS = document.getElementById('howSeller');
+      var howB = document.getElementById('howBuyer');
+      if (segS && segB && panS && panB) {
+        var showAud = function (seller) {
+          segS.classList.toggle('is-on', seller); segB.classList.toggle('is-on', !seller);
+          segS.setAttribute('aria-selected', String(seller)); segB.setAttribute('aria-selected', String(!seller));
+          panS.hidden = !seller; panB.hidden = seller;
+          if (howS && howB) { howS.hidden = !seller; howB.hidden = seller; }
+        };
+        segS.addEventListener('click', function () { showAud(true); });
+        segB.addEventListener('click', function () { showAud(false); });
+      }
     })();
   </script>
 </body>

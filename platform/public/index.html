@@ -230,15 +230,15 @@
             <summary style="cursor:pointer;font-weight:600">How trust &amp; security works</summary>
             <div class="sub" style="margin-top:10px;line-height:1.75">
               <b>Why:</b> an AI buyer shouldn't pay a merchant it can't trust.<br><br>
-              <b>1 · Senso verification (grounded).</b> We ingest each merchant's real facts — catalog, payment, legitimacy — into <b>Senso</b>'s knowledge base <i>from the product</i>, then query it. Every answer is grounded and cited, never hallucinated, producing a trust score.<br>
-              <b>2 · Nanda Town certification.</b> Only <b>payable + Senso-verified + schema-valid</b> stores get a signed <b>agent-facts</b> card in the Nanda registry that other agents read before transacting.<br>
+              <b>1 · Senso verification (grounded facts check).</b> We ingest each merchant's real facts — catalog, payment, legitimacy — into <b>Senso</b>'s knowledge base <i>from the product</i>, then query it. Answers are grounded and cited, never hallucinated. It proves the merchant's facts are on file and answerable — <i>not a KYC/identity check</i>.<br>
+              <b>2 · NANDA-compatible certification.</b> Only <b>payable + Senso-verified + schema-valid</b> stores get a <b>self-issued agent-facts card</b> in NANDA's AgentFacts schema that other agents can read before transacting. <i>(Self-issued for the demo — not registered in the public NANDA Index.)</i><br>
               <b>3 · The payment gate.</b> The buyer agent checks trust <i>before</i> paying. An untrusted merchant is <b>refused the Prava token</b> — no charge happens and the block is captured. Try “simulate untrusted” in the Buyer Agent.
             </div>
           </details>
         </div>
         <div class="card">
           <h3>Trust &amp; Certify</h3>
-          <div class="sub">Ingest the merchant's facts into Senso, verify the manifest, verify trust (grounded), then certify in Nanda Town. Only verified, payable stores get certified.</div>
+          <div class="sub">Ingest the merchant's facts into Senso, verify the manifest, run a grounded trust check, then issue a NANDA-compatible agent-facts certificate (self-issued). Only verified, payable stores get certified.</div>
           <div class="row" style="margin-top:12px"><select class="field" id="trustStore"></select></div>
           <div class="row" style="margin-top:10px"><button class="btn gold" id="tRunAll" style="font-weight:700">Verify &amp; Certify →</button></div>
           <div class="sub" style="margin:12px 0 6px">or run the stages individually:</div>
@@ -251,7 +251,7 @@
         </div>
         <div class="card"><h3>Manifest</h3><div id="tManifest" class="sub" style="margin-top:8px">Not checked yet.</div></div>
         <div class="card"><h3>Senso verification</h3><div id="tSenso" class="sub" style="margin-top:8px">Not checked yet.</div></div>
-        <div class="card"><h3>Nanda Town certification</h3><div id="tNanda" class="sub" style="margin-top:8px">Not certified yet.</div></div>
+        <div class="card"><h3>NANDA-compatible certification</h3><div id="tNanda" class="sub" style="margin-top:8px">Not certified yet.</div></div>
       </section>
 
       <section id="view-placeholder" class="hidden">
@@ -269,7 +269,7 @@
       catalog: ['Marketplace', 'Search every vendable store and check out via Prava.'],
       buyer: ['Buyer Agent', 'Run an AI buyer against a vendable store.'],
       transactions: ['Transactions', 'Prava settlements from agent purchases.'],
-      trust: ['Trust & Certify', 'Nanda Town certification and Senso verification.'],
+      trust: ['Trust & Certify', 'Senso grounded-facts checks and self-issued, NANDA-compatible certification.'],
       settings: ['Settings', 'Workspace and integration settings.'],
     };
     const SECTIONS = ['dashboard', 'stores', 'catalog', 'buyer', 'detail', 'trust', 'placeholder'];
@@ -337,7 +337,7 @@
       const chip = (n, label, color) => `<div class="stat" style="border-left:3px solid ${color}"><div class="n">${n}</div><div class="l">${esc(label)}</div></div>`;
       const next = attn.slice(0, 6).map(s => `<button class="btn outline goCertify" data-id="${esc(s.id)}" style="padding:6px 12px;margin:6px 6px 0 0">${esc(s.manifest.displayName)} →</button>`).join('');
       $('trustSummary').innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><h3 style="margin:0">Trust &amp; Certify</h3><button class="btn outline" id="goTrust">Open Trust &amp; Certify →</button></div>`
-        + `<div class="sub" style="margin-top:6px">AI buyers only transact with verified, certified merchants — certification is gated on Prava-payable + Senso-verified + a valid manifest.</div>`
+        + `<div class="sub" style="margin-top:6px">AI buyers only transact with verified, certified merchants. Certification is self-issued (NANDA AgentFacts schema) and gated on Prava-payable + a Senso grounded-facts check + a valid manifest.</div>`
         + `<div class="stats" style="margin-top:12px">${chip(certified.length, 'Certified', 'var(--gold)')}${chip(verified.length, 'Verified only', 'var(--green)')}${chip(attn.length, 'Not certified', '#d9c9a3')}</div>`
         + (next ? `<div class="sub" style="margin:12px 0 2px">Certify next:</div><div>${next}</div>` : '');
       $('goTrust').addEventListener('click', () => setView('trust'));
@@ -555,7 +555,7 @@
         const sen = r.senso && r.senso.length
           ? '<div class="sub" style="margin:12px 0 4px"><b>Senso grounded answers</b></div>' + r.senso.map(a => `<div style="margin:5px 0"><span style="color:${a.grounded ? 'var(--green)' : '#c0392b'};font-weight:700">${a.grounded ? '✓' : '✗'}</span> <b>${esc(a.key)}</b> — <span class="sub">${esc((a.answer || '').slice(0, 180))}</span></div>`).join('')
           : `<div class="sub" style="margin-top:10px">${d.sensoConfigured ? '' : 'No Senso key set — add SENSO_API_KEY to enable grounded verification.'}</div>`;
-        $('tSenso').innerHTML = badge + sig + sen;
+        $('tSenso').innerHTML = badge + '<div class="sub" style="margin:2px 0 6px">Grounded facts check — proves the merchant facts are on file in Senso and answerable with citations, not a KYC/identity check.</div>' + sig + sen;
       } catch (e) { $('tSenso').innerHTML = `<div class="err">${esc(e.message)}</div>`; }
       finally { b.disabled = false; b.textContent = t0; }
     }
@@ -570,7 +570,7 @@
         const reqList = checkList([{ label: 'Payable via Prava', ok: req.payable }, { label: 'Senso-verified', ok: req.verified }, { label: 'Manifest valid', ok: req.manifestValid }]);
         if (c.certified) {
           const facts = `/agent/${encodeURIComponent(id)}/.well-known/agent-facts.json`;
-          $('tNanda').innerHTML = `<div class="badge" style="margin-bottom:10px"><span class="dot"></span>Certified in Nanda Town</div>` + reqList + `<div class="meta" style="margin-top:10px"><div class="k">Certificate</div><div class="v"><code>${esc(c.certificateId)}</code></div><div class="k">Agent-facts</div><div class="v"><a href="${facts}" target="_blank">${facts}</a></div></div>`;
+          $('tNanda').innerHTML = `<div class="badge" style="margin-bottom:10px"><span class="dot"></span>Certified · NANDA-compatible (self-issued)</div>` + reqList + `<div class="meta" style="margin-top:10px"><div class="k">Certificate</div><div class="v"><code>${esc(c.certificateId)}</code></div><div class="k">Agent-facts</div><div class="v"><a href="${facts}" target="_blank">${facts}</a></div></div><div class="sub" style="margin-top:8px">Self-issued in NANDA's AgentFacts schema for the demo — not registered in the public NANDA Index.</div>`;
         } else {
           $('tNanda').innerHTML = `<div class="err" style="margin-bottom:10px">Not certified — ${esc(c.reason || 'requirements not met')}</div>` + reqList + `<div class="sub" style="margin-top:8px">Run “Verify with Senso” first; certification needs a verified, payable, valid store.</div>`;
         }
