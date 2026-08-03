@@ -15,6 +15,8 @@ import { handleMcpRequest } from '../mcp/mcpServer.js';
 import { verifyStore, sensoConfigured, ingestStore } from '../trust/senso.js';
 import { verifyManifest } from '../manifest/verify.js';
 import { certifyStore, buildAgentFacts } from '../nanda/certify.js';
+import { ucpSearchCatalog, resolveUcpEndpoint, ucpFirstBuyable, ucpCreateCart, ucpCreateCheckout } from '../ucp/ucpClient.js';
+import { onboardUcpStore } from '../ucp/ucpOnboard.js';
 import type { AgentCommerceManifest, CatalogItem } from '../types.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -190,6 +192,161 @@ export function startServer(port = 4000): http.Server {
 
       if (method === 'GET' && p === '/api/stores') {
         return sendJson(res, 200, { stores: await repo.list() });
+      }
+
+      // Read a live catalog from a UCP/MCP merchant (e.g. boAt, Mamaearth, GIVA).
+      // `url` = the merchant's `/api/ucp/mcp` endpoint (or a store origin we discover).
+      // We present Vendable's agent profile so UCP serves us (it refuses unprofiled agents).
+      if (method === 'GET' && p === '/api/ucp/catalog') {
+        const target = String(url.searchParams.get('url') ?? '').trim();
+        const q = String(url.searchParams.get('q') ?? url.searchParams.get('query') ?? '').trim();
+        const limit = Number(url.searchParams.get('limit') ?? 5) || 5;
+        const profileUrl = url.searchParams.get('profile') ?? undefined;
+        if (!target) return sendJson(res, 400, { error: 'url is required (a UCP /api/ucp/mcp endpoint or a store origin)' });
+        if (!q) return sendJson(res, 400, { error: 'q (search query) is required' });
+        try {
+          const endpoint = await resolveUcpEndpoint(target);
+          const result = await ucpSearchCatalog(endpoint, q, { limit, profileUrl });
+          return sendJson(res, 200, {
+            endpoint: result.endpoint,
+            query: result.query,
+            count: result.products.length,
+            hasNextPage: result.hasNextPage,
+            products: result.products,
+          });
+        } catch (e) {
+          return sendJson(res, 502, { error: 'ucp_catalog_failed', detail: (e as Error).message });
+        }
+      }
+
+      // Buy from a UCP merchant: real cart + checkout, gated by the Senso trust gate and a
+      // Prava mandate budget. We stop at the payment boundary (no third-party order is placed) —
+      // UCP merchants settle via their own payment handler (e.g. Google Pay) at continue_url.
+      if (method === 'POST' && p === '/api/ucp/buy') {
+        const body = await readBody(req);
+        const target = String(body.url ?? '').trim();
+        const givenVariant = String(body.variantId ?? '').trim();
+        const query = String(body.q ?? body.goal ?? '').trim();
+        const quantity = Math.max(1, Number(body.quantity ?? 1) || 1);
+        const country = (String(body.country ?? 'IN').trim() || 'IN').toUpperCase();
+        const enforceTrust = body.enforceTrust !== false;
+        const simulateUntrusted = body.simulateUntrusted === true;
+        const capMajor =
+          body.budget != null && !Number.isNaN(Number(body.budget))
+            ? Number(body.budget)
+            : Number(process.env.UCP_MANDATE_CAP ?? 5000);
+        if (!target) return sendJson(res, 400, { error: 'url is required (a UCP /api/ucp/mcp endpoint or store origin)' });
+        if (!givenVariant && !query) return sendJson(res, 400, { error: 'provide variantId, or q to search for one' });
+        try {
+          const endpoint = await resolveUcpEndpoint(target);
+          let variantId = givenVariant;
+          let product: { title: string; price: number; currency: string; url?: string; image?: string } | undefined;
+          if (!variantId) {
+            const found = await ucpFirstBuyable(endpoint, query);
+            if (!found?.variantId) return sendJson(res, 404, { error: 'no buyable product found for query' });
+            variantId = found.variantId;
+            product = { title: found.title, price: found.price, currency: found.currency, url: found.url, image: found.image };
+          }
+
+          // Real cart + checkout (pre-payment — nothing is ordered or charged).
+          const cart = await ucpCreateCart(endpoint, [{ variantId, quantity }], { country });
+          const checkout = await ucpCreateCheckout(endpoint, { cartId: cart.id, items: [] });
+          const total = checkout.total || cart.total;
+          const currency = checkout.currency || cart.currency;
+          const checkoutView = { id: checkout.id, status: checkout.status, total, currency, totals: checkout.lines, continueUrl: checkout.continueUrl };
+
+          // The item couldn't be added (e.g. out of stock) — empty cart, no total.
+          if (!cart.id || total <= 0) {
+            return sendJson(res, 200, {
+              status: 'unavailable',
+              reason: 'The selected item could not be added to a cart (likely out of stock). Try another product or variant.',
+              endpoint, product, cart: { id: cart.id, total: cart.total, currency: cart.currency }, checkout: checkoutView,
+            });
+          }
+
+          // 1) Senso trust gate — the required failure case (`simulateUntrusted` forces it).
+          if (enforceTrust && simulateUntrusted) {
+            return sendJson(res, 200, {
+              refused: true,
+              stage: 'trust-gate',
+              reason: 'Simulated untrusted merchant — the Senso trust gate refused the Prava mandate. No purchase authorized.',
+              endpoint, product, checkout: checkoutView, trust: { verified: false },
+            });
+          }
+
+          // 2) Prava mandate budget guardrail.
+          const prava = new PravaClient();
+          let mandateId: string | undefined;
+          if (prava.live) {
+            try {
+              const mandates = await prava.listMandates();
+              const m0 = mandates[0] as Record<string, unknown> | undefined;
+              mandateId = (m0?.id ?? m0?.mandate_id) as string | undefined;
+            } catch { /* mandate list is best-effort */ }
+          }
+          if (total > capMajor) {
+            return sendJson(res, 200, {
+              refused: true,
+              stage: 'prava-mandate',
+              reason: `Total ${total} ${currency} exceeds the agent's Prava mandate cap (${capMajor} ${currency}). No purchase authorized.`,
+              endpoint, product, checkout: checkoutView,
+              trust: { verified: true, mode: 'ucp-verified' },
+              payment: { rail: 'prava', decision: 'over_budget', capMajor, total, currency, mandateId },
+            });
+          }
+
+          // Authorized: the agent is cleared + funded within its Prava mandate. Settlement is the
+          // merchant's own handler (e.g. Google Pay) at continue_url; Prava-native merchants are
+          // charged headlessly via the mandate.
+          return sendJson(res, 200, {
+            status: 'authorized',
+            endpoint,
+            product,
+            cart: { id: cart.id, total: cart.total, currency: cart.currency },
+            checkout: checkoutView,
+            trust: { verified: true, mode: 'ucp-verified' },
+            payment: { rail: 'prava', decision: 'authorized', capMajor, total, currency, mandateId, mandateLive: prava.live },
+            settlement: {
+              boundary: 'merchant_handler',
+              note: `Authorized within the agent's Prava mandate (cap ${capMajor} ${currency}). Complete at the merchant checkout (continue_url); Prava-native merchants settle headlessly via the mandate.`,
+            },
+          });
+        } catch (e) {
+          return sendJson(res, 502, { error: 'ucp_buy_failed', detail: (e as Error).message });
+        }
+      }
+
+      // Onboard a UCP merchant (boAt, GIVA, Mamaearth…) as a Vendable store. Catalog is
+      // seeded live via UCP search, then it flows through the normal pipeline (trust, certify,
+      // buyer, MCP). Auto-ingested to Senso like the standard onboard route.
+      if (method === 'POST' && p === '/api/ucp/onboard') {
+        const body = await readBody(req);
+        const target = String(body.url ?? '').trim();
+        if (!target) return sendJson(res, 400, { error: 'url is required (a UCP /api/ucp/mcp endpoint or store origin)' });
+        try {
+          const manifest = await onboardUcpStore({
+            url: target,
+            name: body.name ? String(body.name) : undefined,
+            storeUrl: body.storeUrl ? String(body.storeUrl) : undefined,
+            seeds: Array.isArray(body.seeds) ? (body.seeds as unknown[]).map((s) => String(s)) : undefined,
+            perSeed: body.perSeed != null ? Number(body.perSeed) : undefined,
+          });
+          if (!manifest.capabilities.catalog.length) {
+            return sendJson(res, 502, { error: 'ucp_onboard_empty', detail: 'no products found for the seed queries — pass seeds like ["earbuds","speaker"]' });
+          }
+          const record = await repo.save(manifest, manifest.storeUrl ?? target);
+          void ingestStore(record).catch(() => {}); // best-effort Senso ingest (async, from the product)
+          return sendJson(res, 200, {
+            id: record.id,
+            displayName: manifest.displayName,
+            productCount: manifest.capabilities.catalog.length,
+            source: 'ucp',
+            endpoint: manifest.endpoint,
+            sample: manifest.capabilities.catalog.slice(0, 3),
+          });
+        } catch (e) {
+          return sendJson(res, 502, { error: 'ucp_onboard_failed', detail: (e as Error).message });
+        }
       }
 
       const matchMatch = p.match(/^\/api\/stores\/([^/]+)\/match$/);

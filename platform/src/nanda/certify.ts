@@ -10,13 +10,14 @@ export interface NandaAgentFacts {
   name: string;
   description: string;
   url?: string;
-  registry: 'nanda-town';
+  registry: string;
+  self_issued: boolean;
   endpoints: Record<string, string>;
   capabilities: string[];
   payment: { rail: string; currency: string };
   catalogSize: number;
   trust: { verified: boolean; score: number; mode?: string; attestations: string[] };
-  certificate?: { id: string; issuedAt: string; issuer: string };
+  certificate?: { id: string; issuedAt: string; issuer: string; standard: string; self_issued: boolean };
   version: string;
 }
 
@@ -36,7 +37,7 @@ export interface CertResult {
   agentFacts: NandaAgentFacts;
 }
 
-const ISSUER = 'nanda-town';
+const ISSUER = 'vendable';
 
 /** Build the store's NANDA agent-facts card. */
 export function buildAgentFacts(rec: StoreRecord, agentBase: string, trust?: TrustReport): NandaAgentFacts {
@@ -53,7 +54,8 @@ export function buildAgentFacts(rec: StoreRecord, agentBase: string, trust?: Tru
     name: m.displayName,
     description: `Agent-commerce storefront for ${m.displayName} — discoverable, verified, and payable by Prava.`,
     url: m.storeUrl ?? rec.url,
-    registry: 'nanda-town',
+    registry: 'nanda-compatible',
+    self_issued: true,
     endpoints: {
       manifest: `${agentBase}/.well-known/agent-commerce.json`,
       product_feed: `${agentBase}/feed.json`,
@@ -96,6 +98,6 @@ export function certifyStore(
   const issuedAt = new Date().toISOString();
   const certificateId =
     'nanda_cert_' + createHash('sha256').update(`${rec.manifest.agentId}|${issuedAt.slice(0, 10)}`).digest('hex').slice(0, 16);
-  agentFacts.certificate = { id: certificateId, issuedAt, issuer: ISSUER };
+  agentFacts.certificate = { id: certificateId, issuedAt, issuer: ISSUER, standard: 'nanda-agentfacts', self_issued: true };
   return { certified: true, certificateId, issuedAt, issuer: ISSUER, requirements, agentFacts };
 }
